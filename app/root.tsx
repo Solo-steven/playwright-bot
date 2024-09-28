@@ -1,16 +1,11 @@
-import {
-  Links,
-  Meta,
-  Outlet,
-  Scripts,
-  ScrollRestoration,
-} from "@remix-run/react";
+import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "@remix-run/react";
 import type { LinksFunction } from "@remix-run/node";
 
-import "./tailwind.css";
+import styles from "./tailwind.css?url";
 
 export const links: LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
+  { rel: "stylesheet", href: styles },
   {
     rel: "preconnect",
     href: "https://fonts.gstatic.com",
@@ -31,7 +26,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body>
+      {/**  Focus Dark Mode */}
+      <body className="dark font-mono">
         {children}
         <ScrollRestoration />
         <Scripts />
