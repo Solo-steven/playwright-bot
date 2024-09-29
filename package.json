@@ -62,5 +62,6 @@
       "yarn format:write",
       "yarn lint:fix"
     ]
-  }
+  },
+  "packageManager": "yarn@4.2.2"
 }
