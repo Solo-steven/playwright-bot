@@ -98,7 +98,7 @@ export async function action({ request }: ActionFunctionArgs) {
       finishLLMSession(id);
       return redirect("/", {
         headers: await clearCookieHeader(),
-      })
+      });
     }
   }
   return json({ messages: [], nextState: undefined });
@@ -173,7 +173,7 @@ function useChatMessage() {
     finish: () => {
       interruptGenFetcher.submit(createActionType(ACTION.FINISH), { method: "POST" });
       setState(ChatMessageState.Submiting);
-    }
+    },
   };
 }
 

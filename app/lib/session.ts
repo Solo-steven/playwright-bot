@@ -90,7 +90,7 @@ export async function finishLLMSession(id: string) {
   SessionConfigInMemoryStore.delete(id);
   SessionMessagesInMemoryStore.delete(id);
   SessionResultInMemoryStore.delete(id);
-  if(SessionBrowserInMemoryStore.get(id)) {
+  if (SessionBrowserInMemoryStore.get(id)) {
     const [browser] = SessionBrowserInMemoryStore.get(id)!;
     await browser.close();
   }
@@ -103,7 +103,6 @@ export enum CreateLLMSessionResult {
   TooBusy = "toobusy",
   MissingConfig = "missingconfig",
 }
-
 
 function validateLLMSessionRequirement(id: string) {
   if (llmJobCount > 3) {
@@ -135,12 +134,12 @@ function validateLLMSessionRequirement(id: string) {
  */
 export async function createLLMSession(id: string) {
   const possibleConfig = validateLLMSessionRequirement(id);
-  if(typeof possibleConfig == "string") {
+  if (typeof possibleConfig == "string") {
     return possibleConfig;
   }
   const config = possibleConfig;
-  const results = ([] as SessionResult);
-  const messages = ([] as Array<OpenAIMessage>);
+  const results = [] as SessionResult;
+  const messages = [] as Array<OpenAIMessage>;
   const { abort, getSingal } = createAborter();
   SessionResultInMemoryStore.set(id, results);
   SessionMessagesInMemoryStore.set(id, messages);
@@ -150,18 +149,25 @@ export async function createLLMSession(id: string) {
   });
   const [browser, page] = await openBrowserWithPage(config.url);
   SessionBrowserInMemoryStore.set(id, [browser, page]);
-  createBackgroundLLMJob(browser, page, config.taskDescription, messages, results, getSingal);
+  createBackgroundLLMJob(
+    browser,
+    page,
+    config.taskDescription,
+    messages,
+    results,
+    getSingal,
+  );
   llmJobCount++;
   return CreateLLMSessionResult.Sucess;
 }
 /**
- * 
- * @param id 
- * @returns 
+ *
+ * @param id
+ * @returns
  */
 export async function restartLLMSession(id: string) {
   const possibleConfig = validateLLMSessionRequirement(id);
-  if(typeof possibleConfig == "string") {
+  if (typeof possibleConfig == "string") {
     return possibleConfig;
   }
   const config = possibleConfig;
@@ -174,14 +180,24 @@ export async function restartLLMSession(id: string) {
     abort();
   });
   let browser: Browser, page: Page;
-  if(browserAndPage) {
+  if (browserAndPage) {
     [browser, page] = browserAndPage;
-  }else {
-    Logger.info(`Job ${id} restart, but dose not have browser and page instance.`, browserAndPage);
+  } else {
+    Logger.info(
+      `Job ${id} restart, but dose not have browser and page instance.`,
+      browserAndPage,
+    );
     [browser, page] = await openBrowserWithPage(config.url);
   }
-  createBackgroundLLMJob(browser, page, config.taskDescription, messages, results, getSingal);
-  llmJobCount ++;
+  createBackgroundLLMJob(
+    browser,
+    page,
+    config.taskDescription,
+    messages,
+    results,
+    getSingal,
+  );
+  llmJobCount++;
   return CreateLLMSessionResult.Sucess;
 }
 
