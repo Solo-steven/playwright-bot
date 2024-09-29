@@ -6,8 +6,17 @@ export interface SessionConfig {
 
 export type SessionResult = Array<{
   inst: ActionInstructionOrError;
+  thought: string;
   encodedImage: string;
 }>;
+
+export enum LLMSesionState {
+  Created = "Created",
+  Running = "Running",
+  Pause = "Pause",
+  Finish = "Finish",
+  Deleted = "Deleted",
+}
 
 // export type MemorySession = {
 //     config: SessionConfig;
@@ -25,7 +34,7 @@ export type ActionInstructionOrError =
 export enum ActionInstructionType {
   Click = "Click",
   Type = "Type",
-  Final = "Final",
+  Finish = "Finish",
   Wait = "Wait",
 }
 
@@ -40,7 +49,7 @@ export type ActionInstruction =
       content: string;
     }
   | {
-      type: ActionInstructionType.Final;
+      type: ActionInstructionType.Finish;
     }
   | {
       type: ActionInstructionType.Wait;

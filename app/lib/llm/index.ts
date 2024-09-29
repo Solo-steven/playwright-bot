@@ -3,6 +3,7 @@ import { ActionInstruction } from "~/lib/type";
 import { prompt } from "./prompt";
 
 const ActionInstructionStartRegex = new RegExp("Action");
+const ActionInstructionThoughtStartRegex = new RegExp("Thought");
 
 const client = new OpenAI({
   apiKey: process.env["OPENAI_API_KEY"], // This is the default and can be omitted
@@ -20,16 +21,27 @@ export function sendMessage(messages: Array<OpenAIMessage>) {
   });
 }
 
+/**
+ * Parse the LLM response, please sync this function with the format of our prompt.
+ * current format:
+ * ```
+ * Thought: <string> <change-line> Action: <json-string>
+ * ```
+ * @param choices
+ * @returns
+ */
 export function parseInstruction(
   choices: OpenAI.Chat.Completions.ChatCompletion.Choice,
-): ActionInstruction {
+): [string, ActionInstruction] {
   const content = choices.message.content;
   if (!content) {
     throw new Error("Unexpect");
   }
-  const instrucion = content.split(ActionInstructionStartRegex)[1].slice(1);
-  const instructionJson = JSON.parse(instrucion);
-  return instructionJson;
+  const contentArray = content.split(ActionInstructionStartRegex);
+  const thought = contentArray[0].split(ActionInstructionThoughtStartRegex)[1].slice(1); // lice(1) is to remove `:` punc.
+  const instrucionInString = contentArray[1].slice(1); // slice(1) is to remove `:` punc.
+  const structalInstruction = JSON.parse(instrucionInString);
+  return [thought, structalInstruction];
 }
 
 export function createSystemMessage() {

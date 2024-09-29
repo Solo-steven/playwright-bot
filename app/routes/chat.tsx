@@ -1,5 +1,11 @@
-import { ActionFunctionArgs, LoaderFunctionArgs, redirect, json } from "@remix-run/node";
-import { useFetcher } from "@remix-run/react";
+import {
+  MetaFunction,
+  ActionFunctionArgs,
+  LoaderFunctionArgs,
+  redirect,
+  json,
+} from "@remix-run/node";
+import { useFetcher, useLoaderData } from "@remix-run/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Textarea } from "~/components/ui/textarea";
@@ -7,15 +13,15 @@ import Message from "~/components/Message";
 import {
   createLLMSession,
   stopLLMSession,
-  getLLMSesionResult,
   getLLMSessionMessages,
   getCookieIdFromRequest,
   clearCookieHeader,
-  CreateLLMSessionResult,
   restartLLMSession,
   finishLLMSession,
+  getLLMSessionState,
 } from "~/lib/session";
 import { OpenAIMessage } from "~/lib/llm";
+import { LLMSesionState } from "~/lib/type";
 import { Logger } from "~/lib/logger";
 
 const ACTION = {
@@ -27,34 +33,42 @@ const ACTION = {
   FINISH: "CHAT_ACTION/FINISH",
 };
 
+export const meta: MetaFunction = () => {
+  return [
+    { title: "E2E bot" },
+    { name: "description", content: "Create E2E testing with LLM" },
+  ];
+};
+
 export async function loader({ request }: LoaderFunctionArgs) {
   const id: string | null = await getCookieIdFromRequest(request);
-  // case 1: session not created
   if (!id) {
     Logger.info("Someone Try to access without create session.");
     throw redirect("/", { headers: await clearCookieHeader() });
   }
-  // case 2: try to create a job.
-  const haveRunningJob = getLLMSesionResult(id);
-  if (!haveRunningJob) {
-    const msg = await createLLMSession(id);
-    switch (msg) {
-      case CreateLLMSessionResult.MissingConfig: {
+  const state = getLLMSessionState(id);
+  switch (state) {
+    case LLMSesionState.Created: {
+      const isSuccessd = await createLLMSession(id);
+      if (!isSuccessd) {
         throw redirect("/", { headers: await clearCookieHeader() });
       }
-      case CreateLLMSessionResult.TooBusy: {
-        throw redirect("/", { headers: await clearCookieHeader() });
-      }
-      case CreateLLMSessionResult.Sucess: {
-        break;
-      }
+      break;
+    }
+    case LLMSesionState.Running:
+    case LLMSesionState.Pause: {
+      break;
+    }
+    case LLMSesionState.Deleted: {
+      throw redirect("/", { headers: await clearCookieHeader() });
+    }
+    case LLMSesionState.Finish: {
+      throw redirect("/report");
     }
   }
-  // default:
-  // - create a job successfully.
-  // - running a job, just reload page.
   return {
     id,
+    serverState: getLLMSessionState(id),
   };
 }
 
@@ -66,20 +80,26 @@ export async function action({ request }: ActionFunctionArgs) {
     case ACTION.STOP: {
       stopLLMSession(id);
       return json({
-        nextState: ChatMessageState.Stop,
+        serverState: LLMSesionState.Pause,
       });
     }
     case ACTION.POLLING: {
       return json({
         messages: getLLMSessionMessages(id) || [],
-        nextState: ChatMessageState.Generating,
+        serverState: LLMSesionState.Running,
       });
     }
     case ACTION.RESTART: {
-      restartLLMSession(id);
+      const isSucess = await restartLLMSession(id);
+      if (!isSucess) {
+        finishLLMSession(id);
+        return redirect("/", {
+          headers: await clearCookieHeader(),
+        });
+      }
       return json({
         messages: getLLMSessionMessages(id) || [],
-        nextState: ChatMessageState.Generating,
+        serverState: LLMSesionState.Running,
       });
     }
     case ACTION.ADDMSG: {
@@ -88,34 +108,40 @@ export async function action({ request }: ActionFunctionArgs) {
         role: "user",
         content: formData.get("content") as string,
       });
-      restartLLMSession(id);
+      const isSuccess = await restartLLMSession(id);
+      if (!isSuccess) {
+        finishLLMSession(id);
+        return redirect("/", {
+          headers: await clearCookieHeader(),
+        });
+      }
       return json({
         messages: messages || [],
-        nextState: ChatMessageState.Generating,
+        serverState: LLMSesionState.Running,
       });
     }
     case ACTION.FINISH: {
       finishLLMSession(id);
-      return redirect("/", {
-        headers: await clearCookieHeader(),
-      });
+      return redirect("/report");
     }
   }
-  return json({ messages: [], nextState: undefined });
+  return json({ messages: [], serverState: LLMSesionState.Running });
 }
 
-enum ChatMessageState {
-  Submiting = "Submiting",
-  Generating = "Generating",
-  Stop = "Stop",
-  Finish = "Finish",
-}
+const createActionType = (kind: string) => {
+  const formData = new FormData();
+  formData.set(ACTION.KEY, kind);
+  return formData;
+};
+
+type ClientSideLLMSessionState = LLMSesionState | "Submmiting";
 
 function useChatMessage() {
-  const [state, setState] = useState(ChatMessageState.Generating);
+  const data = useLoaderData<typeof loader>();
+  const [state, setState] = useState(data.serverState as ClientSideLLMSessionState);
   const timmerIdRef = useRef<NodeJS.Timeout | null>(null);
   const messageFetcher = useFetcher<{ messages: Array<OpenAIMessage> }>();
-  const interruptGenFetcher = useFetcher<{ nextState: ChatMessageState }>();
+  const interruptGenFetcher = useFetcher<typeof action>();
 
   const startTimmer = useCallback(() => {
     if (timmerIdRef.current == null) {
@@ -133,11 +159,6 @@ function useChatMessage() {
       timmerIdRef.current = null;
     }
   }, []);
-  const createActionType = (kind: string) => {
-    const formData = new FormData();
-    formData.set(ACTION.KEY, kind);
-    return formData;
-  };
 
   useEffect(() => {
     startTimmer();
@@ -145,10 +166,10 @@ function useChatMessage() {
   }, [startTimmer, clearTimer]);
 
   useEffect(() => {
-    if (interruptGenFetcher.data?.nextState) {
-      setState(interruptGenFetcher.data.nextState);
+    if (interruptGenFetcher.data?.serverState) {
+      setState(interruptGenFetcher.data.serverState);
     }
-  }, [interruptGenFetcher.data?.nextState]);
+  }, [interruptGenFetcher.data?.serverState]);
 
   return {
     state,
@@ -156,37 +177,38 @@ function useChatMessage() {
     stop: () => {
       interruptGenFetcher.submit(createActionType(ACTION.STOP), { method: "POST" });
       clearTimer();
-      setState(ChatMessageState.Submiting);
+      setState("Submmiting");
     },
     restart: () => {
       interruptGenFetcher.submit(createActionType(ACTION.RESTART), { method: "POST" });
       startTimmer();
-      setState(ChatMessageState.Submiting);
+      setState("Submmiting");
     },
     addMessage: (content: string) => {
       const formData = createActionType(ACTION.ADDMSG);
       formData.set("content", content);
       interruptGenFetcher.submit(formData, { method: "POST" });
       startTimmer();
-      setState(ChatMessageState.Submiting);
+      setState("Submmiting");
     },
     finish: () => {
       interruptGenFetcher.submit(createActionType(ACTION.FINISH), { method: "POST" });
-      setState(ChatMessageState.Submiting);
+      setState("Submmiting");
     },
   };
 }
 
-export default function Index() {
+export default function ChatPage() {
   const windowRef = useRef<HTMLDivElement | null>(null);
   const { state, messages, restart, stop, addMessage, finish } = useChatMessage();
   const [content, setContent] = useState("");
 
-  const disableInput = state !== ChatMessageState.Stop;
-  const disableStop = state !== ChatMessageState.Generating;
-  const disableRestart = state !== ChatMessageState.Stop;
-  const disableAddMessage = state !== ChatMessageState.Stop;
-  const disableFinish = state !== ChatMessageState.Generating;
+  const disableStop = state !== LLMSesionState.Running;
+  const disableFinish = state !== LLMSesionState.Running;
+
+  const disableInput = state !== LLMSesionState.Pause;
+  const disableRestart = state !== LLMSesionState.Pause;
+  const disableAddMessage = state !== LLMSesionState.Pause;
 
   useEffect(() => {
     windowRef.current?.scrollIntoView({ behavior: "smooth" });

@@ -20,7 +20,7 @@ export function prompt() {
           - { type: "Wait" } 
           - { type: "GoBack" }
           - { type: "Google" }
-          - { type: "ANSWER" }
+          - { type: "Finish" }
   
           Key Guidelines You MUST follow:
   

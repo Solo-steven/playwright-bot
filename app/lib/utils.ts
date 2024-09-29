@@ -5,10 +5,13 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function createAborter() {
+export function createAborter(postAction?: () => void) {
   let flag = false;
   return {
     abort() {
+      if (flag === false) {
+        postAction?.();
+      }
       flag = true;
     },
     getSingal() {
