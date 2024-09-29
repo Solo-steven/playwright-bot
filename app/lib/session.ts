@@ -42,8 +42,9 @@ export async function clearCookieHeader() {
 // ## Life Cycle of Session
 // 1. Create: Only have Config
 // 2. Running: Have Config. Result. Messages. Browser and Aboter
-// 3. Finish: Only Have Results
-// 4. Deleted: Have not nothing.
+// 3. Pause: Have All data as Running state, but there is not job in queue.
+// 4. Finish: Only Have Results
+// 5. Deleted: Have not nothing.
 const SessionConfigInMemoryStore: Map<string, SessionConfig> = new Map();
 const SessionResultInMemoryStore: Map<string, SessionResult> = new Map();
 const SessionMessagesInMemoryStore: Map<string, Array<OpenAIMessage>> = new Map();
@@ -388,7 +389,9 @@ async function createBackgroundLLMJob(
   } catch (e) {
     console.error(e);
     await browser.close();
-    stopLLMSession(id);
-    decreasLLMJobCount();
+    if (getLLMSessionState(id) === LLMSesionState.Running) {
+      stopLLMSession(id);
+      decreasLLMJobCount();
+    }
   }
 }

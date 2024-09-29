@@ -19,9 +19,10 @@ import {
   restartLLMSession,
   finishLLMSession,
   getLLMSessionState,
+  getLLMSesionResult,
 } from "~/lib/session";
 import { OpenAIMessage } from "~/lib/llm";
-import { LLMSesionState } from "~/lib/type";
+import { ActionInstructionType, LLMSesionState } from "~/lib/type";
 import { Logger } from "~/lib/logger";
 
 const ACTION = {
@@ -84,6 +85,14 @@ export async function action({ request }: ActionFunctionArgs) {
       });
     }
     case ACTION.POLLING: {
+      const instructions = getLLMSesionResult(id);
+      const isFinish =
+        instructions &&
+        instructions[instructions.length - 1]?.inst?.type === ActionInstructionType.Finish;
+      if (isFinish) {
+        await finishLLMSession(id);
+        throw redirect("/report");
+      }
       return json({
         messages: getLLMSessionMessages(id) || [],
         serverState: LLMSesionState.Running,
@@ -159,7 +168,6 @@ function useChatMessage() {
       timmerIdRef.current = null;
     }
   }, []);
-
   useEffect(() => {
     startTimmer();
     return () => clearTimer();
@@ -217,6 +225,9 @@ export default function ChatPage() {
   return (
     <div className="bg-slate-950 w-screen h-screen">
       <div className="max-w-[1280px] m-auto py-16 ">
+        <div className="flex gap-3 border-b mb-8 pb-5 justify-between flex-shrink-0 ">
+          <h2 className="text-3xl text-primary tracking-tighter font-bold">Bot Generate</h2>
+        </div>
         <div className="bg-muted/60 border rounded-lg p-4">
           <div className=" max-h-[580px] p-4 overflow-y-auto">
             {messages.map((message) => renderOpenAiMessage(message))}
@@ -238,7 +249,13 @@ export default function ChatPage() {
                 {" "}
                 Restart Generate
               </Button>
-              <Button disabled={disableAddMessage} onClick={() => addMessage(content)}>
+              <Button
+                disabled={disableAddMessage}
+                onClick={() => {
+                  setContent("");
+                  addMessage(content);
+                }}
+              >
                 {" "}
                 Add Message{" "}
               </Button>
