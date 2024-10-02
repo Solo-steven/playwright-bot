@@ -1,0 +1,20 @@
+{
+  "name": "browser",
+  "packageManager": "yarn@4.5.0",
+  "scripts": {
+    "dev": "ts-node ./src/index.ts"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.7.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.2"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.47.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "redis": "^4.7.0"
+  }
+}

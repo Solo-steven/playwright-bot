@@ -1,5 +1,13 @@
-node_modules
-
-/.cache
-/build
+## Env
+.DS_Store
 .env
+
+## Node package
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+node_modules
