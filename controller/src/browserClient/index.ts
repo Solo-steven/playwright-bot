@@ -1,3 +1,4 @@
+/* eslint-disable no-constant-condition, no-fallthrough */
 import {
   ActionInstruction,
   ActionInstructionAPIResponseBody,

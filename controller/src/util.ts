@@ -1,7 +1,6 @@
 import { ActionInstruction, ActionResult } from "./browserClient/type";
-import { BucketClient } from "./BucketClient";
 import { LLMMessage, LLMCompleteion } from "./llmClient";
-import { Session, SessionConfig } from "./session";
+import { Session } from "./session";
 
 export async function waitInAsync(time: number) {
   return new Promise((resolve) => {
@@ -17,9 +16,12 @@ export async function saveBased64ImageIntoBucket(
   iterTime: number,
 ) {
   const sessionId = session.sessionId;
-  const { bucketName  } = session.config;
-  await session.bucketClient.uploadBased64Image(`${sessionId}/iter-${iterTime}.png`, result.base64EncodeString);
-  const url = `https://storage.googleapis.com/${bucketName}/${sessionId}/iter-${iterTime}.png`
+  const { bucketName } = session.config;
+  await session.bucketClient.uploadBased64Image(
+    `${sessionId}/iter-${iterTime}.png`,
+    result.base64EncodeString,
+  );
+  const url = `https://storage.googleapis.com/${bucketName}/${sessionId}/iter-${iterTime}.png`;
   return url;
 }
 
@@ -36,9 +38,10 @@ export async function getLLMMessageFromActionResult(
         content: [
           {
             type: "text",
-            text: iterTime !== 0
-              ? "There is Observation image, what should we do next ?"
-              : taskDescription,
+            text:
+              iterTime !== 0
+                ? "There is Observation image, what should we do next ?"
+                : taskDescription,
           },
           {
             type: "image_url",
@@ -79,7 +82,7 @@ export function getThoughtAndActionInstructionFronLLMCompletions(
 ): [string, ActionInstruction] {
   const completionsContent = completions.choices[0].message.content!;
   const [thoughtInString, actionInstInString] =
-    completionsContent?.split(ActionStringRegex);
+    completionsContent.split(ActionStringRegex);
   const thought = thoughtInString.split(ThoughtStringRegex)[1].slice(1);
 
   return [thought, JSON.parse(actionInstInString.slice(1))];

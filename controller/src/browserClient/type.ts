@@ -39,7 +39,6 @@ export enum ActionInstructionType {
   Wait = "Wait",
 }
 
-
 export type ActionInstruction =
   | {
       type: ActionInstructionType.Click;

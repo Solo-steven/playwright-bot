@@ -14,11 +14,14 @@ export type LLMClient = {
 };
 
 export function createLLMClient(sessionId: string): LLMClient {
-  const openai = observeOpenAI(new OpenAI({
-    apiKey: process.env.OPENAI_APIKEY,
-  }), {
-    sessionId
-  });
+  const openai = observeOpenAI(
+    new OpenAI({
+      apiKey: process.env.OPENAI_APIKEY,
+    }),
+    {
+      sessionId,
+    },
+  );
 
   async function chatComplete(messages: Array<LLMMessage>) {
     return await openai.chat.completions.create({

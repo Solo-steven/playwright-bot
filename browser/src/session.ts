@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from "uuid";
 import { createClient } from "redis";
 import { ChildProcess, exec } from "node:child_process";
 import {
@@ -128,7 +128,10 @@ export async function stopSession(id: string) {
   session.aborter = true;
   await redisClient
     .multi()
-    .set(`${id}_inst`, JSON.stringify({ type: ActionInstructionType.Finish } as ActionInstruction))
+    .set(
+      `${id}_inst`,
+      JSON.stringify({ type: ActionInstructionType.Finish } as ActionInstruction),
+    )
     .set(`${id}_state`, BrowserSessionState.Finish)
     .exec()
     .then(() => {

@@ -77,7 +77,6 @@ async function setToFinishState(sessionId: string) {
     .exec();
 }
 
-const HOUR = 60 * 60 * 1000;
 const MIN = 60 * 1000;
 
 test("workloop test", async ({ page }) => {
