@@ -1,75 +1,38 @@
-import 'dotenv/config';
-import { createLLMClient, LLMClient, LLMMessage } from "./llmClient";
-import { createBrowserClient, BrowserClient } from "./browserClient";
-import { getLLMMessageFromActionResult, getMessageFromLLMCompletions, getThoughtAndActionInstructionFronLLMCompletions } from "./util";
-import { ActionInstructionType } from "./browserClient/type";
-
-type SessionConfig = {
-    url: string;
-    taskDescription: string;
-}
-
-type Session = {
-    sessionId: string;
-    config: SessionConfig;
-    messages: Array<LLMMessage>;
-    llmClient: LLMClient;
-    browserClient: BrowserClient
-}
+import "dotenv/config";
+import express from "express";
+import { createSession, createSessionWorker, SessionConfig } from "./session";
 
 
-async function createCodeGenSession(config: SessionConfig): Promise<Session> {
-    return {
-        sessionId: "1",
-        messages: [],
-        llmClient: createLLMClient(),
-        config,
-        browserClient: await createBrowserClient(config.url),
+// const app = express();
 
-    }
-}
+// app.use(express.json());
 
+// app.post('/session/create', async (req, resp) => {
+//     const config = req.body as SessionConfig;
+//     const sessionId = await createSession(config);
+//     resp.json({
+//         sessionId,
+//     });
+//     return;
+// });
 
-async function testSession() {
-    const config = {
-        url: "https://google.com",
-        taskDescription: "Go to Yahoo news page and click a random article."
-    };
-    const session = await createCodeGenSession(config);
+// app.post("/session/state", async () => {
     
-    try {
-        // loop
-        let iterTime = 0
-        //while(1) {
-            {
-                const result = await session.browserClient.getResult();
-                const browserMsg = await getLLMMessageFromActionResult(result, iterTime === 0 ? config.taskDescription: undefined, iterTime);
-                session.messages.push(browserMsg);
-                const completions = await session.llmClient.chatComplete(session.messages);
-                const [though, actionInstruction] = getThoughtAndActionInstructionFronLLMCompletions(completions);
-                console.log("1:",though, actionInstruction);
-                if(actionInstruction.type === ActionInstructionType.Finish) {
-                    
-                }
-                const llmMessage = getMessageFromLLMCompletions(completions);
-                session.messages.push(llmMessage);
-                await session.browserClient.sendInstruction(actionInstruction);
-            }
-            iterTime ++
-            {
-                const result = await session.browserClient.getResult();
-                const browserMsg = await getLLMMessageFromActionResult(result, iterTime === 0 ? config.taskDescription: undefined, iterTime);
-                session.messages.push(browserMsg);
-                const completions = await session.llmClient.chatComplete(session.messages);
-                const [though, actionInstruction] = getThoughtAndActionInstructionFronLLMCompletions(completions);
-                console.log("2:",though, actionInstruction);
-            }
-        // }
-    } catch(e) {
-        console.log(e);
-    }
-    await session.browserClient.deleteSession();
+// });
 
+// app.listen(process.env.PORT, () => {
+
+// });
+ 
+async function testSession() {
+    const session = await createSession({
+        taskDescription: "Go to Yahoo news and click a random article",
+        bucketName: process.env.GCP_BUCKET_NAME as string,
+        credentials: process.env.GCP_BUCKET_CREDENTIALS as string,
+        url: "https://google.com",
+        maxIter: 10, 
+    });
+    await createSessionWorker(session);
 }
 
 testSession();

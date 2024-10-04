@@ -1,5 +1,5 @@
 export function prompt() {
-    return `
+  return `
             Imagine you are a robot browsing the web, just like humans. Now you need to complete a task.
             In each iteration, you will receive an Observation that includes a screenshot of a webpage and some texts. 
             This screenshot will feature Numerical Labels placed in the TOP LEFT corner of each Web Element. 
@@ -40,4 +40,4 @@ export function prompt() {
               Then the User will provide:
                 Observation: {{A labeled screenshot Given by User}}
         `;
-  }
+}
